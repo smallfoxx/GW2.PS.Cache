@@ -1,5 +1,5 @@
 Function New-GW2CacheFile {
-    [CMdletBinding(DefaultParameterSetName="UsingID")]
+    [CmdletBinding(DefaultParameterSetName="UsingID")]
     param(
         [parameter(ParameterSetName="UsingID",ValueFromPipelineByPropertyName)]
         $ID=0,
@@ -57,12 +57,18 @@ Function New-GW2CacheFile {
 
 Function Get-GW2CacheFileID {
     [cmdletbinding()]
-    param([int]$ID=0)
+    param($ID=0)
 
     Process {
-        $MaxItems = [double](Get-GW2ConfigValue -Section Cache -Name 'MaxItemsPerFile')
-        Write-Debug "Finding ID: $MaxItems * Floor($ID/$MaxItems)"
-        [int]($MaxItems * [Math]::Floor($ID / ($MaxItems)))
+        $ResultNum=$Null
+        If ( [Int32]::TryParse($ID, [ref]$ResultNum)) {
+            $ID=$ResultNum
+            $MaxItems = [double](Get-GW2ConfigValue -Section Cache -Name 'MaxItemsPerFile')
+            # Write-Debug "Finding ID: $MaxItems * Floor($ID/$MaxItems)"
+            Write-Output ("{0:00000000}" -f ([int]($MaxItems * [Math]::Floor($ID / ($MaxItems)))))
+        } else {
+            Write-Output "General"
+        }
     }
 
 }
@@ -94,5 +100,68 @@ Function New-GW2CacheFileContent {
         $Base.Items.([string]($Root.ID)) = (New-GW2CacheEntry -Value $Root.Value)
     }
     $Base | ConvertTo-JSON -Depth (Get-GW2ConfigValue -Section Cache -Name 'DefaultDepth')
+}
+
+Function Set-GW2CacheFileContent {
+    [CMdletBinding(DefaultParameterSetName="UsingID")]
+    param(
+        [parameter(ParameterSetName="UsingID",ValueFromPipelineByPropertyName)]
+        $ID=0,
+        [parameter(ParameterSetName="TagName",ValueFromPipelineByPropertyName,Mandatory)]
+        [string]$Name,
+        [parameter(ValueFromPipeline,ValueFromPipelineByPropertyName,ValueFromRemainingArguments)]
+        $Value,
+        [parameter(Mandatory)]
+        [string]$APIEndpoint,
+        [switch]$DoNotUpdateExisting
+    )
+
+    Begin {
+        $FolderPath = "{0}\{1}" -f (Get-GW2ConfigValue -Section Cache -Name Path),$APIEndpoint
+        If (-Not (Test-path $FolderPath -ErrorAction SilentlyContinue)) {
+            Write-Debug "Creating cache folder at $FolderPath"
+            $Folder = New-Item -Path $FolderPath -ItemType Directory
+        } else {
+            $Folder = Get-Item -Path $FolderPath
+        }
+        $FileNames = @{}
+    }
+
+    Process {
+        switch ($PSCmdlet.ParameterSetName) {
+            "TagName" {
+                $FileName = "{0:00000000}.json" -f $Name
+                $FileNames.$FileName += @([PSCustomObject]@{
+                    'ID'=$Name
+                    'Value'=$Value
+                })
+            }
+            default {
+                $FileName = "{0:00000000}.json" -f (Get-GW2CacheFileID -id $ID)
+                $FileNames.$FileName += @([PSCustomObject]@{
+                    'ID'=[string]$ID
+                    'Value'=$Value
+                })
+            }
+        }
+    }
+
+    End {
+        ForEach ($FName in ($FileNames.Keys)) {
+            $CacheFilePath="$($Folder.FullName)\$FName"
+            If (Test-Path $CacheFilePath) {
+                If (-not $DoNotUpdateExisting) {
+                    $FileJson = Get-Content $CacheFilePath | ConvertFrom-JSON
+                    ForEach ($Entry in $FileNames.$FName) {
+                        $FileJson | Add-Member NoteProperty ($Entry.ID) ($Entry.Value) -Force
+                    }
+                }
+                Write-Debug "CAUTION: Cache file for $FName already exists in $APIEndpoint"
+            } else {
+                Write-Debug "Putting $(($FileNames.$FName).Count) entries in cache file $CacheFilePath"
+                New-GW2CacheFileContent -Roots ($FileNames.$FName) | Set-Content -Path $CacheFilePath
+            }
+        }
+    }
 }
 

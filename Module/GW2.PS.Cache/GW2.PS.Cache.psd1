@@ -12,7 +12,7 @@
 # RootModule = ''
 
 # Version number of this module.
-ModuleVersion = '0.0.3.1'
+ModuleVersion = '0.1.2.40'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -54,7 +54,7 @@ PowerShellVersion = '5.1'
 RequiredModules = @(
   @{
     'ModuleName' = 'GW2.PS.API'
-    'ModuleVersion' = '0.0.3.1'
+    'ModuleVersion' = '0.1.2.40'
   }
 )
 
@@ -73,8 +73,9 @@ RequiredModules = @(
 
 # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
 NestedModules = @(
-  'GW2.PS.Cache-ConfigManagement',
-  'GW2.PS.Cache-FileControl'
+  'GW2.PS.Cache-ConfigManagement.psm1',
+  'GW2.PS.Cache-FileControl.psm1',
+  'GW2.PS.Cache-DataManagement.psm1'
 )
 
 
