@@ -46,7 +46,7 @@ Function Get-GW2CacheFileValue {
         $MissingIds = $AllIDs | Where-Object { $_ -notin $FoundIds }
         If ($MissingIds) {
             Write-Debug "Getting $($MissingIds.count) of $($AllIDs.count) IDs from API that were not in CACHE"
-            $WebResults = Get-GW2APIValue -APIValue $APIValue -SecureAPIKey $SecureAPIKey -APIParams @{ 'ids' = ($MissingIds -join ',') } -UseCache:$false
+            $WebResults = Get-GW2APIValue -APIValue $APIValue -APIParams @{ 'ids' = ($MissingIds -join ',') } -UseCache:$false
             $WebResults | Set-GW2CacheFileContent -APIEndpoint $APIValue
             $FoundEntries.AddRange(@($WebResults))
         } 
@@ -63,18 +63,11 @@ Function Get-GW2CacheValue {
     )
 
     Process {
-       # try {
-            If ($APIParams.count -gt 0) {
-                Get-GW2CacheFileValue -APIValue $APIValue -APIParams $APIParams -ErrorAction Stop -APIBase $APIBase
-            } else {
-                Get-GW2APIValue -APIValue $APIValue -SecureAPIKey $SecureAPIKey -APIParams $APIParams -UseCache:$false
-            }
-       <# } catch {
-            Write-Debug "Get CACHE value FAILED; trying API call"
-            $WebResults = Get-GW2APIValue -APIValue $APIValue -SecureAPIKey $SecureAPIKey -APIParams $APIParams -UseCache:$false 
-            $WebResults | Set-GW2CacheFileContent -APIEndpoint $APIValue 
-            Write-Output $WebResults
-        } #>
+        If ($APIParams.count -gt 0) {
+            Get-GW2CacheFileValue -APIValue $APIValue -APIParams $APIParams -ErrorAction Stop -APIBase $APIBase
+        } else {
+            Get-GW2APIValue -APIValue $APIValue -SecureAPIKey $SecureAPIKey -APIParams $APIParams -UseCache:$false
+        }
     }
 
 }
